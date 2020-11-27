@@ -69,12 +69,13 @@ class grid():
 
         self.walls = api.walls(state)
 
+        self.caps = api.capsules(state)
 
         self.reward = api.food(state)
 
         self.loss = api.ghosts(state) 
 
-        for ghost in api.ghosts(state):
+        for ghost in api.ghostStates(state):
             if(ghost[0] in self.loss and ghost[1] == 1):
                 self.loss.remove(ghost[0])
         
@@ -89,7 +90,6 @@ class grid():
         
         for y in range(self.y1):
             for x in range(self.x1):
-                danger = False
                 closeGhosts = api.distanceLimited(self.loss, state, 4)
                              
                 if (x,y) in self.walls:
@@ -97,24 +97,54 @@ class grid():
                 elif (x,y) in self.loss:
                     self.grid[x][y] = -20
 
+                elif (x,y) in self.caps:
+                    self.grid[x][y] = 10
+                
+
                 elif (self.x1 > 7):
-                    if(len(closeGhosts) > 0):
-                        if (x,y) in self.reward:
-                            self.grid[x][y] = 1 - 20/self.closestGhost(state, (x,y))
-                        else :
-                            self.grid[x][y] = - 20/self.closestGhost(state, (x,y)) + 0.8/self.closestFood(state, (x,y))
-                    else:
+                    if(len(self.reward) <= 2):
                         if (x,y) in self.reward:
                             self.grid[x][y] = 1 
                         else :
                             self.grid[x][y] = 0.8/self.closestFood(state, (x,y))
-
+                    else:
+                        if (x,y) in self.reward:
+                            self.grid[x][y] = 1 
+                        else :
+                            self.grid[x][y] = 0
                 else:    
                     if (x,y) in self.reward:
                         self.grid[x][y] = 1
                     else :
                         self.grid[x][y] = 0
-            
+        
+        for y in range(self.y1):
+            for x in range(self.x1):
+                if (x,y) in self.loss:
+                    if(x + 1, y) not in self.walls:
+                        self.grid[x + 1][y] = -15
+                        if(x + 2, y) not in self.walls and (x + 2) < self.x1 :
+                            self.grid[x + 2][y] = -10                      
+                    if(x - 1, y) not in self.walls:
+                        self.grid[x - 1][y] = -15
+                        if(x - 2, y) not in self.walls and (x - 2) > 0:
+                            self.grid[x - 2][y] = -10                   
+                    if(x, y + 1) not in self.walls:
+                        self.grid[x][y + 1] = -15
+                        if(x, y + 2) not in self.walls and (y + 2) < self.y1:
+                            self.grid[x][y + 2] = -10
+                    if(x, y - 1) not in self.walls:
+                        self.grid[x][y - 1] = -15
+                        if(x, y - 2) not in self.walls and (y - 2) > 0:
+                            self.grid[x][y - 2] = -10
+                    if (x + 1, y + 1) not in self.walls :
+                            self.grid[x + 1][y + 1] = -10
+                    if (x + 1, y - 1) not in self.walls :
+                            self.grid[x + 1][y - 1] = -10
+                    if (x - 1, y + 1) not in self.walls :
+                            self.grid[x - 1][y + 1] = -10
+                    if (x - 1, y - 1) not in self.walls :
+                            self.grid[x - 1][y - 1] = -10
 
     def closestFood(self, state, pos): 
         food = api.food(state) 
@@ -274,7 +304,7 @@ class bestSeekingAgent(Agent):
         
             for i in range(len(g)):
                 for ii in range(len(g[0])):
-                    if((i,ii) not in walls and (i,ii) not in loss):
+                    if((i,ii) not in walls):
                         copyGrid[i][ii] = r[i][ii] + 0.5 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
             flag = False
             for i in range(len(g)):
