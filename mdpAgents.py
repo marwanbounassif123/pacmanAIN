@@ -72,7 +72,11 @@ class grid():
 
         self.reward = api.food(state)
 
-        self.loss = api.ghosts(state)   
+        self.loss = api.ghosts(state) 
+
+        for ghost in api.ghosts(state):
+            if(ghost[0] in self.loss and ghost[1] == 1):
+                self.loss.remove(ghost[0])
         
 
         self.x1 = self.walls[len(self.walls) - 1][0] + 1
@@ -85,41 +89,55 @@ class grid():
         
         for y in range(self.y1):
             for x in range(self.x1):
-                #print(x,y)
+                danger = False
+                closeGhosts = api.distanceLimited(self.loss, state, 4)
+                             
                 if (x,y) in self.walls:
                     self.grid[x][y] = None
                 elif (x,y) in self.loss:
                     self.grid[x][y] = -20
-                elif(True):    
+
+                elif (self.x1 > 7):
+                    if(len(closeGhosts) > 0):
+                        if (x,y) in self.reward:
+                            self.grid[x][y] = 1 - 20/self.closestGhost(state, (x,y))
+                        else :
+                            self.grid[x][y] = - 20/self.closestGhost(state, (x,y)) + 0.8/self.closestFood(state, (x,y))
+                    else:
+                        if (x,y) in self.reward:
+                            self.grid[x][y] = 1 
+                        else :
+                            self.grid[x][y] = 0.8/self.closestFood(state, (x,y))
+
+                else:    
                     if (x,y) in self.reward:
-                        self.grid[x][y] = 1 
+                        self.grid[x][y] = 1
                     else :
-                        self.grid[x][y] = 0.8/self.closestFood(state, (x,y))
-                else :
-                    if (x,y) in self.reward:
-                        self.grid[x][y] = 1 - 20/self.closestGhost(state, (x,y))
-                    else :
-                        self.grid[x][y] = - 20/self.closestGhost(state, (x,y)) + 0.8/self.closestFood(state, (x,y))
+                        self.grid[x][y] = 0
+            
 
     def closestFood(self, state, pos): 
         food = api.food(state) 
         #closestFood = (0,0)
         score = 100
         for x in food :
-            if (util.manhattanDistance(pos, x) < score):
-                #closestFood = x  
-                score = util.manhattanDistance(pos, x)   
+            # print(x, pos)
+            if (self.manhattanDistance(pos, x) < score):                
+                score = self.manhattanDistance(pos, x)   
         return score
     
     def closestGhost(self, state, pos): 
         ghost = api.ghosts(state) 
-        closestGhost = ghost[0]
+        retval = ghost[0]
+        
         for x in ghost :
-            if util.manhattanDistance(pos, x) < util.manhattanDistance(pos, closestGhost):
-                closestGhost = x      
-        return self.manhattanDistance(closestGhost,pos)
+
+            if self.manhattanDistance(pos, x) < self.manhattanDistance(pos, retval):
+                retval = x      
+        return self.manhattanDistance(retval,pos)
 
     def manhattanDistance(self,position, position1):
+        # print(position[0], position1[0], position1[1], position[1])
         return abs(position[0] - position1[0]) + abs(position[1] - position1[1]) 
 
 
@@ -224,11 +242,11 @@ class bestSeekingAgent(Agent):
 
 
         bestDirection = max(scores, key = scores.get)
-        for (a,b) in scores.items():
-            print(a,b)
-        print(" ")
+        # for (a,b) in scores.items():
+        #     print(a,b)
+        # print(" ")
         
-        print(bestDirection)
+        # print(bestDirection)
 
         if(bestDirection == Directions.NORTH):
             return api.makeMove(Directions.NORTH, l)
