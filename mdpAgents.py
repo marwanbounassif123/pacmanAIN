@@ -35,51 +35,22 @@ import random
 import game
 import util
 
-class MDPAgent(Agent):
-
-    # Constructor: this gets run when we first invoke pacman.py
-    def __init__(self):
-        print "Starting up MDPAgent!"
-        name = "Pacman"
-
-    # Gets run after an MDPAgent object is created and once there is
-    # game state to access.
-    def registerInitialState(self, state):
-        print "Running registerInitialState for MDPAgent!"
-        print "I'm at:"
-        print api.whereAmI(state)
-        
-    # This is what gets run in between multiple games
-    def final(self, state):
-        print "Looks like the game just ended!"
-
-    # For now I just move randomly
-    def getAction(self, state):
-        # Get the actions we can try, and remove "STOP" if that is one of them.
-        legal = api.legalActions(state)
-        if Directions.STOP in legal:
-            legal.remove(Directions.STOP)
-        # Random choice between the legal options.
-        return api.makeMove(random.choice(legal), legal)
-
-
+# This class holds the utilities in a 2-D array
 class grid():
     def __init__(self, state):
+        # Required information about the world
         pacmanOrg = api.whereAmI(state)
-
         self.walls = api.walls(state)
-
         self.caps = api.capsules(state)
-
         self.reward = api.food(state)
-
         self.loss = api.ghosts(state) 
 
+        # Ignore scared ghosts
         for ghost in api.ghostStates(state):
             if(ghost[0] in self.loss and ghost[1] == 1):
                 self.loss.remove(ghost[0])
         
-
+        # Grid dimentions based on last wall co-ordinate
         self.x1 = self.walls[len(self.walls) - 1][0] + 1
         self.y1 = self.walls[len(self.walls) - 1][1] + 1
        
@@ -87,21 +58,19 @@ class grid():
         self.grid = [[0 for y in range(self.y1)]
                         for x in range(self.x1)]
 
-        
+        #Intialize default utilities will be used as rewards
         for y in range(self.y1):
             for x in range(self.x1):
-                closeGhosts = api.distanceLimited(self.loss, state, 4)
-                             
+                closeGhosts = api.distanceLimited(self.loss, state, 4)  
                 if (x,y) in self.walls:
                     self.grid[x][y] = None
                 elif (x,y) in self.loss:
                     self.grid[x][y] = -20
-
-                # elif (x,y) in self.caps:
-                #     self.grid[x][y] = 10
-                
-
+                elif (x,y) in self.caps:
+                    self.grid[x][y] = 10
+                # Larger grids        
                 elif (self.x1 > 7):
+                    # If there are nearby ghosts subtract ghost score divided by distance
                     if(len(closeGhosts) >= 1):
                         if (x,y) in self.reward:
                             self.grid[x][y] = 1 - 20/self.closestGhost(self.loss, (x,y)) 
@@ -112,12 +81,13 @@ class grid():
                             self.grid[x][y] = 1 
                         else :
                             self.grid[x][y] =  0.8/self.closestFood(state, (x,y))
+                #Smaller Grids
                 else:    
                     if (x,y) in self.reward:
                         self.grid[x][y] = 1
                     else :
                         self.grid[x][y] = 0
-        
+        # Override rewards for legal spaces near ghosts
         for y in range(self.y1):
             for x in range(self.x1):
                 if (x,y) in self.loss:
@@ -146,54 +116,44 @@ class grid():
                     if (x - 1, y - 1) not in self.walls :
                             self.grid[x - 1][y - 1] = -10
 
+    # Return Pacmans manhattan distance from the closest food
     def closestFood(self, state, pos): 
         food = api.food(state) 
-        #closestFood = (0,0)
         score = 100
         for x in food :
-            # print(x, pos)
             if (self.manhattanDistance(pos, x) < score):                
                 score = self.manhattanDistance(pos, x)   
         return score
     
+    # Return pacmans distance from the closest Ghost
     def closestGhost(self, loss, pos): 
-        
         retval = loss[0]
-        
         for x in loss :
-
             if self.manhattanDistance(pos, x) < self.manhattanDistance(pos, retval):
                 retval = x      
         return self.manhattanDistance(retval,pos)
 
+    #Return the manhattan distance between two points
     def manhattanDistance(self,position, position1):
-        # print(position[0], position1[0], position1[1], position[1])
         return abs(position[0] - position1[0]) + abs(position[1] - position1[1]) 
 
+class MDPAgent(Agent):
 
-class bestSeekingAgent(Agent):
-
+    # Return the optimal move based on value iteration
     def getAction(self, state):
         x = api.whereAmI(state)[0]
         y = api.whereAmI(state)[1]
-        l = api.legalActions(state)        
-        #if(self.setup == False or self.counter > 0):    
+        l = api.legalActions(state)  
+        # Create grid of utilites       
         layout = grid(state)
+        # Copy inital grid to be used as deafult rewards
         reward = layout.grid[:]
-
+        # Replace intial grid by final converged values
         layout.grid = self.bellman(state, layout.grid, reward, layout.loss, layout.walls)
-            #print(layout.grid)
-            
-                
-            #self.setup = True
-            #self.counter = 0
-            
+
         if Directions.STOP in l:
             l.remove(Directions.STOP)
-        # map = {Directions.NORTH : 0,
-        #        Directions.EAST : 0,
-        #        Directions.SOUTH : 0,
-        #        Directions.WEST : 0 }
+
         scores = {}
 
         north = Directions.NORTH in l
@@ -201,6 +161,7 @@ class bestSeekingAgent(Agent):
         west = Directions.WEST in l
         south = Directions.SOUTH in l
         
+        # Calculate expected value of moving north
         if(north and east and west):
             scores[Directions.NORTH] = 0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y] 
         elif(not north and east and west):
@@ -218,6 +179,7 @@ class bestSeekingAgent(Agent):
         elif(north and not east and west):
             scores[Directions.NORTH] =0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]
         
+        # Calculate the expected value of moving east
         if(north and east and west):
             scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y]
         elif(not north and east and west):
@@ -235,6 +197,7 @@ class bestSeekingAgent(Agent):
         elif(north and not east and west):
             scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]  
         
+        # Calculate the expected value of moving west
         if(north and east and west):
             scores[Directions.WEST] =0.1 * layout.grid[x][y + 1] + 0.1 * layout.grid[x + 1][y] + 0.8 * layout.grid[x - 1][y]
         elif(not north and east and west):
