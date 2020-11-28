@@ -97,21 +97,21 @@ class grid():
                 elif (x,y) in self.loss:
                     self.grid[x][y] = -20
 
-                elif (x,y) in self.caps:
-                    self.grid[x][y] = 10
+                # elif (x,y) in self.caps:
+                #     self.grid[x][y] = 10
                 
 
                 elif (self.x1 > 7):
-                    if(len(self.reward) <= 2):
+                    if(len(closeGhosts) >= 1):
                         if (x,y) in self.reward:
-                            self.grid[x][y] = 1 
+                            self.grid[x][y] = 1 - 20/self.closestGhost(self.loss, (x,y)) 
                         else :
-                            self.grid[x][y] = 0.8/self.closestFood(state, (x,y))
+                            self.grid[x][y] = 0.8/self.closestFood(state, (x,y)) - 20/self.closestGhost(self.loss, (x,y)) 
                     else:
                         if (x,y) in self.reward:
                             self.grid[x][y] = 1 
                         else :
-                            self.grid[x][y] = 0
+                            self.grid[x][y] =  0.8/self.closestFood(state, (x,y))
                 else:    
                     if (x,y) in self.reward:
                         self.grid[x][y] = 1
@@ -156,11 +156,11 @@ class grid():
                 score = self.manhattanDistance(pos, x)   
         return score
     
-    def closestGhost(self, state, pos): 
-        ghost = api.ghosts(state) 
-        retval = ghost[0]
+    def closestGhost(self, loss, pos): 
         
-        for x in ghost :
+        retval = loss[0]
+        
+        for x in loss :
 
             if self.manhattanDistance(pos, x) < self.manhattanDistance(pos, retval):
                 retval = x      
@@ -188,7 +188,6 @@ class bestSeekingAgent(Agent):
             #self.setup = True
             #self.counter = 0
             
-
         if Directions.STOP in l:
             l.remove(Directions.STOP)
         # map = {Directions.NORTH : 0,
