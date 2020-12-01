@@ -37,6 +37,7 @@ import util
 
 # This class holds the utilities in a 2-D array
 class grid():
+    
     def __init__(self, state):
         # Required information about the world
         pacmanOrg = api.whereAmI(state)
@@ -44,7 +45,8 @@ class grid():
         self.caps = api.capsules(state)
         self.reward = api.food(state)
         self.loss = api.ghosts(state) 
-
+        print(self.loss)
+        
         # Ignore scared ghosts
         for ghost in api.ghostStates(state):
             if(ghost[0] in self.loss and ghost[1] == 1):
@@ -56,6 +58,9 @@ class grid():
        
 
         self.grid = [[0 for y in range(self.y1)]
+                        for x in range(self.x1)]
+
+        self.terminal = [[0 for y in range(self.y1)]
                         for x in range(self.x1)]
 
         #Intialize default utilities will be used as rewards
@@ -137,6 +142,7 @@ class grid():
                         # if (x - 1, y - 1) not in self.walls and len(self.reward) > 1:
                         #     self.grid[x - 1][y - 1] = -12.8
                         
+                        
     # Return Pacmans manhattan distance from the closest food
     def closestFood(self, state, pos): 
         food = api.food(state) 
@@ -160,6 +166,10 @@ class grid():
 
 class MDPAgent(Agent):
 
+    def __init__(self):
+        self.lastGhost = (0,0)
+    # def final(self):
+    #     self.lastGhost =
     # Return the optimal move based on value iteration
     def getAction(self, state):
         x = api.whereAmI(state)[0]
@@ -167,6 +177,27 @@ class MDPAgent(Agent):
         l = api.legalActions(state)  
         # Create grid of utilites       
         layout = grid(state)
+        if(len(layout.grid) < 8):
+            print(self.lastGhost[0] , self.lastGhost[1])
+            layout.grid[self.lastGhost[0]][self.lastGhost[1]] = 0
+            for i in range(len(layout.grid)):
+                for ii in range(len(layout.grid[0])):
+                    if((i,ii) in layout.loss):
+                        ghostLegal = self.legalCo(i,ii, layout.walls)
+                        if(self.lastGhost in ghostLegal):
+                            ghostLegal.remove(self.lastGhost)
+                        if(len(ghostLegal) == 1):
+                            layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -20 
+                        elif(len(ghostLegal) == 2):
+                            layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -10  
+                            layout.grid[ghostLegal[1][0]][ghostLegal[1][1]] = -10  
+                        elif(len(ghostLegal) == 3):
+                            print("shoudl never go here")
+                            # layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -6.7  
+                            # layout.grid[ghostLegal[1][0]][ghostLegal[1][1]] = -6.7 
+                            # layout.grid[ghostLegal[2][0]][ghostLegal[2][1]] = -6.7
+                        
+        print(layout.grid)
         # Copy inital grid to be used as deafult rewards
         reward = layout.grid[:]
         # Replace intial grid by final converged values
@@ -268,12 +299,16 @@ class MDPAgent(Agent):
         
 
         if(bestDirection == Directions.NORTH):
+            self.lastGhost = layout.loss[0]
             return api.makeMove(Directions.NORTH, l)
         if(bestDirection == Directions.EAST):
+            self.lastGhost = layout.loss[0]
             return api.makeMove(Directions.EAST, l)
         if(bestDirection == Directions.SOUTH):
+            self.lastGhost = layout.loss[0]
             return api.makeMove(Directions.SOUTH, l)
         if(bestDirection == Directions.WEST):
+            self.lastGhost = layout.loss[0]
             return api.makeMove(Directions.WEST, l)
         
 
