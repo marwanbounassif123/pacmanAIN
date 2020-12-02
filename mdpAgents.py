@@ -45,8 +45,8 @@ class grid():
         self.caps = api.capsules(state)
         self.reward = api.food(state)
         self.loss = api.ghosts(state) 
-        print(self.loss)
-        
+        self.loss[0] = (int(self.loss[0][0]), int(self.loss[0][1]))
+
         # Ignore scared ghosts
         for ghost in api.ghostStates(state):
             if(ghost[0] in self.loss and ghost[1] == 1):
@@ -121,18 +121,18 @@ class grid():
                             self.grid[x - 1][y + 1] = -10
                         if (x - 1, y - 1) not in self.walls :
                             self.grid[x - 1][y - 1] = -10
-        else:
-            for y in range(self.y1):
-                for x in range(self.x1):
-                    if (x,y) in self.loss:
-                        if(x + 1, y) not in self.walls and len(self.reward) > 1:
-                            self.grid[x + 1][y] = -18                   
-                        if(x - 1, y) not in self.walls and len(self.reward) > 1:
-                            self.grid[x - 1][y] = -18                
-                        if(x, y + 1) not in self.walls and len(self.reward) > 1:
-                            self.grid[x][y + 1] = -18
-                        if(x, y - 1) not in self.walls and len(self.reward) > 1:
-                            self.grid[x][y - 1] = -18
+        # else:
+        #     for y in range(self.y1):
+        #         for x in range(self.x1):
+        #             if (x,y) in self.loss:
+                        # if(x + 1, y) not in self.walls and len(self.reward) > 1:
+                        #     self.grid[x + 1][y] = -18                   
+                        # if(x - 1, y) not in self.walls and len(self.reward) > 1:
+                        #     self.grid[x - 1][y] = -18                
+                        # if(x, y + 1) not in self.walls and len(self.reward) > 1:
+                        #     self.grid[x][y + 1] = -18
+                        # if(x, y - 1) not in self.walls and len(self.reward) > 1:
+                        #     self.grid[x][y - 1] = -18
                         # if (x + 1, y + 1) not in self.walls and len(self.reward) > 1:
                         #     self.grid[x + 1][y + 1] = -12.8
                         # if (x + 1, y - 1) not in self.walls and len(self.reward) > 1:
@@ -163,13 +163,15 @@ class grid():
     #Return the manhattan distance between two points
     def manhattanDistance(self,position, position1):
         return abs(position[0] - position1[0]) + abs(position[1] - position1[1]) 
-
+import time
 class MDPAgent(Agent):
 
     def __init__(self):
-        self.lastGhost = (0,0)
-    # def final(self):
-    #     self.lastGhost =
+        self.lastGhost = (4,1)
+        
+    def final(self, state):
+        self.lastGhost = (4,1)
+
     # Return the optimal move based on value iteration
     def getAction(self, state):
         x = api.whereAmI(state)[0]
@@ -177,28 +179,14 @@ class MDPAgent(Agent):
         l = api.legalActions(state)  
         # Create grid of utilites       
         layout = grid(state)
+        
         if(len(layout.grid) < 8):
-            print(self.lastGhost[0] , self.lastGhost[1])
-            layout.grid[self.lastGhost[0]][self.lastGhost[1]] = 0
-            for i in range(len(layout.grid)):
-                for ii in range(len(layout.grid[0])):
-                    if((i,ii) in layout.loss):
-                        ghostLegal = self.legalCo(i,ii, layout.walls)
-                        if(self.lastGhost in ghostLegal):
-                            ghostLegal.remove(self.lastGhost)
-                        if(len(ghostLegal) == 1):
-                            layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -20 
-                        elif(len(ghostLegal) == 2):
-                            layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -10  
-                            layout.grid[ghostLegal[1][0]][ghostLegal[1][1]] = -10  
-                        elif(len(ghostLegal) == 3):
-                            print("shoudl never go here")
-                            # layout.grid[ghostLegal[0][0]][ghostLegal[0][1]] = -6.7  
-                            # layout.grid[ghostLegal[1][0]][ghostLegal[1][1]] = -6.7 
-                            # layout.grid[ghostLegal[2][0]][ghostLegal[2][1]] = -6.7
-                        
-        print(layout.grid)
-        # Copy inital grid to be used as deafult rewards
+            layout.grid = self.pathProp(layout.grid, self.lastGhost, layout.loss[0], self.legalCo(layout.loss[0][0], layout.loss[0][1], layout.walls), layout.walls, 1)
+            layout.grid[self.lastGhost[0]][self.lastGhost[1]] = -20
+
+        
+
+        
         reward = layout.grid[:]
         # Replace intial grid by final converged values
         layout.grid = self.bellman(layout.grid, reward, layout.loss, layout.walls)
@@ -289,7 +277,7 @@ class MDPAgent(Agent):
 
         bestDirection = max(scores, key = scores.get)
         if(scores[bestDirection] == 0):
-            # print("utilites blocked")
+        #    print("utilites blocked")
             bestDirection = Directions.WEST
         # for (a,b) in scores.items():
         #     print(a,b)
@@ -339,7 +327,7 @@ class MDPAgent(Agent):
                         if(len(g) > 7):
                             copyGrid[i][ii] = r[i][ii] + 0.1 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
                         else :
-                            copyGrid[i][ii] = r[i][ii] + 0.8 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
+                            copyGrid[i][ii] = r[i][ii] + 0.6 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
             flag = False
             for i in range(len(g)):
                 for ii in range(len(g[0])):
@@ -471,4 +459,18 @@ class MDPAgent(Agent):
             legal.append((x, y - 1))
         return legal
 
-                    
+    def pathProp(self, g, previousMove, currentGhost, legalGhostCo, w, discount):
+        if(previousMove in legalGhostCo):
+            legalGhostCo.remove(previousMove)
+        if(len(legalGhostCo) > 1):
+            g[legalGhostCo[0][0]][legalGhostCo[0][1]] = discount * g[currentGhost[0]][currentGhost[1]] * 0.5
+            g[legalGhostCo[1][0]][legalGhostCo[1][1]] = discount * g[currentGhost[0]][currentGhost[1]] * 0.5
+            return g
+        elif(len(legalGhostCo) == 0):
+            return g
+        else:
+            g[legalGhostCo[0][0]][legalGhostCo[0][1]] = discount * g[currentGhost[0]][currentGhost[1]]
+            return self.pathProp(g, currentGhost, (legalGhostCo[0][0],legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.5) 
+
+
+
