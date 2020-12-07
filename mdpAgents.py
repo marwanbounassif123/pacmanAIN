@@ -89,7 +89,13 @@ class grid():
                 #Smaller Grids
                 else:    
                     if (x,y) in self.reward:
-                        self.grid[x][y] = 10
+                        if(len(self.reward) > 1):
+                            if((x,y) == (1,1)):
+                                self.grid[x][y] = 5
+                            else:
+                                self.grid[x][y] = 1
+                        else:
+                            self.grid[x][y] = 20
                     else :
                         self.grid[x][y] = 0
         # Override rewards for legal spaces near ghosts
@@ -125,22 +131,22 @@ class grid():
         #     for y in range(self.y1):
         #         for x in range(self.x1):
         #             if (x,y) in self.loss:
-                        # if(x + 1, y) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x + 1][y] = -18                   
-                        # if(x - 1, y) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x - 1][y] = -18                
-                        # if(x, y + 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x][y + 1] = -18
-                        # if(x, y - 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x][y - 1] = -18
-                        # if (x + 1, y + 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x + 1][y + 1] = -12.8
-                        # if (x + 1, y - 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x + 1][y - 1] = -12.8
-                        # if (x - 1, y + 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x - 1][y + 1] = -12.8
-                        # if (x - 1, y - 1) not in self.walls and len(self.reward) > 1:
-                        #     self.grid[x - 1][y - 1] = -12.8
+        #                 if(x + 1, y) not in self.walls and len(self.reward) > 1:
+        #                     self.grid[x + 1][y] = -18                   
+        #                 if(x - 1, y) not in self.walls and len(self.reward) > 1:
+        #                     self.grid[x - 1][y] = -18                
+        #                 if(x, y + 1) not in self.walls and len(self.reward) > 1:
+        #                     self.grid[x][y + 1] = -18
+        #                 if(x, y - 1) not in self.walls and len(self.reward) > 1:
+        #                     self.grid[x][y - 1] = -18
+        #                 # if (x + 1, y + 1) not in self.walls and len(self.reward) > 1:
+        #                 #     self.grid[x + 1][y + 1] = -12.8
+        #                 # if (x + 1, y - 1) not in self.walls and len(self.reward) > 1:
+        #                 #     self.grid[x + 1][y - 1] = -12.8
+        #                 # if (x - 1, y + 1) not in self.walls and len(self.reward) > 1:
+        #                 #     self.grid[x - 1][y + 1] = -12.8
+        #                 # if (x - 1, y - 1) not in self.walls and len(self.reward) > 1:
+        #                 #     self.grid[x - 1][y - 1] = -12.8
                         
                         
     # Return Pacmans manhattan distance from the closest food
@@ -168,9 +174,11 @@ class MDPAgent(Agent):
 
     def __init__(self):
         self.lastGhost = (4,1)
+        self.layout = None
         
     def final(self, state):
         self.lastGhost = (4,1)
+        self.layout = None
 
     # Return the optimal move based on value iteration
     def getAction(self, state):
@@ -178,21 +186,31 @@ class MDPAgent(Agent):
         y = api.whereAmI(state)[1]
         l = api.legalActions(state)  
         # Create grid of utilites       
-        layout = grid(state)
+        self.layout = grid(state)
         
-        if(len(layout.grid) < 8):
-            layout.grid = self.pathProp(layout.grid, self.lastGhost, layout.loss[0], self.legalCo(layout.loss[0][0], layout.loss[0][1], layout.walls), layout.walls, 1)
-            layout.grid[self.lastGhost[0]][self.lastGhost[1]] = -20
+        if(len(self.layout.grid) < 8 and self.lastGhost != (0,0)):
+            self.pathProp(self.lastGhost, self.layout.loss[0], self.legalCo(self.layout.loss[0][0], self.layout.loss[0][1], self.layout.walls), self.layout.walls, 1, 5 , x , y)
+            self.layout.grid[self.lastGhost[0]][self.lastGhost[1]] = -20
+            self.layout.grid[self.layout.loss[0][0]][self.layout.loss[0][1]] = -20
+            # print(self.layout.grid)
+
+            # print(self.layout.loss)
+            # print(x,y)
+
 
         
 
         
-        reward = layout.grid[:]
+        reward = self.layout.grid[:]
         # Replace intial grid by final converged values
-        layout.grid = self.bellman(layout.grid, reward, layout.loss, layout.walls)
-        # print(layout.grid[3])
-        # print(layout.grid[4])
-        # print(layout.grid[5])
+        self.layout.grid = self.bellman(self.layout.grid, reward, self.layout.loss, self.layout.walls)
+        # print(self.layout.grid)
+        # print(self.layout.loss)
+        # print(x, y)
+        # time.sleep(1)
+        # print(self.layout.grid[3])
+        # print(self.layout.grid[4])
+        # print(self.layout.grid[5])
         if Directions.STOP in l:
             l.remove(Directions.STOP)
 
@@ -205,75 +223,75 @@ class MDPAgent(Agent):
         
         # Calculate expected value of moving north
         if(north and east and west):
-            scores[Directions.NORTH] = 0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y] 
+            scores[Directions.NORTH] = 0.8 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x - 1][y] 
         elif(not north and east and west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x - 1][y]
         elif(not north and not east and west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x - 1][y]
         elif(not north and not east and not west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(not north and east and not west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(north and not east and not west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(north and east and not west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(north and not east and west):
-            scores[Directions.NORTH] =0.8 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.NORTH] =0.8 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x - 1][y]
         
         # Calculate the expected value of moving east
         if(north and east and south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y - 1]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y + 1] + 0.8 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y - 1]
         elif(not north and east and south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y] + 0.8 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y -1]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y -1]
         elif(not north and not east and south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y] + 0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y - 1]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y - 1]
         elif(not north and not east and not south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y] + 0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(not north and east and not south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y] + 0.8 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(north and not east and not south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y + 1] + 0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(north and east and not south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y + 1] + 0.8 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(north and not east and south):
-            scores[Directions.EAST] =0.1 * layout.grid[x][y + 1] + 0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y - 1]  
+            scores[Directions.EAST] =0.1 * self.layout.grid[x][y + 1] + 0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y - 1]  
         
         # Calculate the expected value of moving west
         if(north and south and west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y - 1] + 0.8 * layout.grid[x - 1][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y - 1] + 0.8 * self.layout.grid[x - 1][y]
         elif(not north and south and west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y - 1] + 0.8 * layout.grid[x - 1][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y - 1] + 0.8 * self.layout.grid[x - 1][y]
         elif(not north and not south and west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.8 * layout.grid[x - 1][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x - 1][y]
         elif(not north and not south and not west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.8 * layout.grid[x][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x][y]
         elif(not north and south and not west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y - 1] + 0.8 * layout.grid[x][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y - 1] + 0.8 * self.layout.grid[x][y]
         elif(north and not south and not west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y] + 0.8 * layout.grid[x][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x][y]
         elif(north and south and not west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y - 1] + 0.8 * layout.grid[x][y]
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y - 1] + 0.8 * self.layout.grid[x][y]
         elif(north and not south and west):
-            scores[Directions.WEST] =0.1 * layout.grid[x][y + 1] + 0.1 * layout.grid[x][y] + 0.8 * layout.grid[x - 1][y]   
+            scores[Directions.WEST] =0.1 * self.layout.grid[x][y + 1] + 0.1 * self.layout.grid[x][y] + 0.8 * self.layout.grid[x - 1][y]   
         
         # Calculate expected value of moving south
         if(south and east and west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y - 1] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y] 
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y - 1] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x - 1][y] 
         elif(not south and east and west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x - 1][y]
         elif(not south and not east and west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x - 1][y]
         elif(not south and not east and not west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(not south and east and not west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(south and not east and not west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y - 1] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y - 1] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x][y]
         elif(south and east and not west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y - 1] + 0.1 * layout.grid[x + 1][y] + 0.1 * layout.grid[x][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y - 1] + 0.1 * self.layout.grid[x + 1][y] + 0.1 * self.layout.grid[x][y]
         elif(south and not east and west):
-            scores[Directions.SOUTH] =0.8 * layout.grid[x][y - 1] + 0.1 * layout.grid[x][y] + 0.1 * layout.grid[x - 1][y]
+            scores[Directions.SOUTH] =0.8 * self.layout.grid[x][y - 1] + 0.1 * self.layout.grid[x][y] + 0.1 * self.layout.grid[x - 1][y]
 
         bestDirection = max(scores, key = scores.get)
         if(scores[bestDirection] == 0):
@@ -285,18 +303,21 @@ class MDPAgent(Agent):
         
         # print(bestDirection)
         
-
         if(bestDirection == Directions.NORTH):
-            self.lastGhost = layout.loss[0]
+            if(len(self.layout.loss) > 0):
+                self.lastGhost = self.layout.loss[0]
             return api.makeMove(Directions.NORTH, l)
         if(bestDirection == Directions.EAST):
-            self.lastGhost = layout.loss[0]
+            if(len(self.layout.loss) > 0):
+                self.lastGhost = self.layout.loss[0]
             return api.makeMove(Directions.EAST, l)
         if(bestDirection == Directions.SOUTH):
-            self.lastGhost = layout.loss[0]
+            if(len(self.layout.loss) > 0):
+                self.lastGhost = self.layout.loss[0]
             return api.makeMove(Directions.SOUTH, l)
         if(bestDirection == Directions.WEST):
-            self.lastGhost = layout.loss[0]
+            if(len(self.layout.loss) > 0):
+                self.lastGhost = self.layout.loss[0]
             return api.makeMove(Directions.WEST, l)
         
 
@@ -327,7 +348,7 @@ class MDPAgent(Agent):
                         if(len(g) > 7):
                             copyGrid[i][ii] = r[i][ii] + 0.1 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
                         else :
-                            copyGrid[i][ii] = r[i][ii] + 0.6 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
+                            copyGrid[i][ii] = r[i][ii] + 0.8 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
             flag = False
             for i in range(len(g)):
                 for ii in range(len(g[0])):
@@ -459,18 +480,61 @@ class MDPAgent(Agent):
             legal.append((x, y - 1))
         return legal
 
-    def pathProp(self, g, previousMove, currentGhost, legalGhostCo, w, discount):
+    def pathProp(self, previousMove, currentGhost, legalGhostCo, w, discount, counter, x ,y):
+        # print(counter)
         if(previousMove in legalGhostCo):
             legalGhostCo.remove(previousMove)
         if(len(legalGhostCo) > 1):
-            g[legalGhostCo[0][0]][legalGhostCo[0][1]] = discount * g[currentGhost[0]][currentGhost[1]] * 0.5
-            g[legalGhostCo[1][0]][legalGhostCo[1][1]] = discount * g[currentGhost[0]][currentGhost[1]] * 0.5
-            return g
-        elif(len(legalGhostCo) == 0):
-            return g
+            
+            # print("indicator", currentGhost, previousMove ,legalGhostCo)
+            d1 = self.manhattanDistance((legalGhostCo[0][0],legalGhostCo[0][1]) , (x,y))
+            d2 = self.manhattanDistance((legalGhostCo[1][0],legalGhostCo[1][1]) , (x,y))
+
+            
+            if(d1 > d2):
+                self.layout.grid[legalGhostCo[0][0]][legalGhostCo[0][1]] = 0.2 * discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+                self.layout.grid[legalGhostCo[1][0]][legalGhostCo[1][1]] = 0.8 * discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+                if(legalGhostCo[0][0] == 4):
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.12, 1, x, y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[1][0], legalGhostCo[1][1], w), w, discount * 0.48, 3, x, y)
+                    return
+                elif(legalGhostCo[1][0] == 4):
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.12, 3, x, y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.48, 1, x, y)
+                    return
+                else:
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.12, 5, x,y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[1][0], legalGhostCo[1][1], w), w, discount * 0.48, 5, x ,y)  
+                    return
+            else:
+                self.layout.grid[legalGhostCo[0][0]][legalGhostCo[0][1]] = 0.8 * discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+                self.layout.grid[legalGhostCo[1][0]][legalGhostCo[1][1]] = 0.2 * discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+                if(legalGhostCo[0][0] == 4):
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.48, 1, x, y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[1][0], legalGhostCo[1][1], w), w, discount * 0.12, 3,x ,y )
+                    return
+                elif(legalGhostCo[1][0] == 4):
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.48, 3, x, y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.12, 1, x, y)
+                    return
+                else:
+                    self.pathProp(currentGhost, (legalGhostCo[0][0], legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.48, 5, x, y)
+                    self.pathProp(currentGhost, (legalGhostCo[1][0], legalGhostCo[1][1]), self.legalCo(legalGhostCo[1][0], legalGhostCo[1][1], w), w, discount * 0.12, 5, x, y)  
+                    return
+            
+
+        elif(len(legalGhostCo) == 0 or counter <= 0):
+            return
+
         else:
-            g[legalGhostCo[0][0]][legalGhostCo[0][1]] = discount * g[currentGhost[0]][currentGhost[1]]
-            return self.pathProp(g, currentGhost, (legalGhostCo[0][0],legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.5) 
+            counter -= 1
+            if((legalGhostCo[0][0], legalGhostCo[0][1]) in self.layout.reward):
+                self.layout.grid[legalGhostCo[0][0]][legalGhostCo[0][1]] = 1 + discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+            else:
+                self.layout.grid[legalGhostCo[0][0]][legalGhostCo[0][1]] = discount * self.layout.grid[currentGhost[0]][currentGhost[1]]
+
+            self.pathProp(currentGhost, (legalGhostCo[0][0],legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, discount * 0.6, counter, x, y) 
+            return
 
 
 
