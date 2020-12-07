@@ -205,8 +205,10 @@ class MDPAgent(Agent):
 
         
         reward = self.layout.grid[:]
+        print(reward)
         # Replace intial grid by final converged values
         self.layout.grid = self.bellman(self.layout.grid, reward, self.layout.loss, self.layout.walls)
+        print(self.layout.grid)
         # print(self.layout.grid)
         # print(self.layout.loss)
         # print(x, y)
@@ -352,7 +354,6 @@ class MDPAgent(Agent):
                         if(len(g) > 7):
                             copyGrid[i][ii] = r[i][ii] + 0.1 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
                         else :
-                            
                             copyGrid[i][ii] = r[i][ii] + 0.8 * self.maxExpected(i ,ii, self.legalCo(i,ii,walls), g)
             flag = False
             for i in range(len(g)):
@@ -557,6 +558,3 @@ class MDPAgent(Agent):
 
             self.pathProp(currentGhost, (legalGhostCo[0][0],legalGhostCo[0][1]), self.legalCo(legalGhostCo[0][0], legalGhostCo[0][1], w), w, 0.5, counter, x, y) 
             return
-
-
-
